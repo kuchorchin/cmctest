@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commission Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ SETUP (shown until you paste your keys) ============ -->
+<div id="setup" class="split hidden">
+  <div class="split-left"><div class="panel">
+    <div class="mark">C</div>
+    <h1>Almost there</h1>
+    <p class="sub">This file needs to know where your database lives.</p>
+    <p style="color:var(--ink-2);font-size:13px;line-height:1.6">
+      Open <b>index.html</b> in any text editor and find the two lines near the top of the script
+      that say <span class="mono">PASTE_YOUR</span>. Replace them with your project URL and
+      publishable key from Supabase, under <b>Settings &rarr; API</b>. Save and reload.
+    </p>
+    <p class="fine">The publishable key is meant to be public — it's in every visitor's browser by design.
+      The database rules are what protect your data. Never paste the <b>service role</b> key here; that one bypasses every rule.</p>
+  </div></div>
+  <div class="split-right">
+    <span class="eyebrow">Setup</span>
+    <p class="kicker">Two lines<br><em>and you're live.</em></p>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="split hidden">
+  <div class="split-left"><div class="panel">
+    <div class="mark">C</div>
+    <h1>Sign in</h1>
+    <p class="sub">Commission portal.</p>
+    <div id="loginAlert"></div>
+    <label class="field"><span>Work email</span>
+      <input class="input" type="email" id="email" autocomplete="username"></label>
+    <label class="field"><span>Password</span>
+      <input class="input" type="password" id="password" autocomplete="current-password"></label>
+    <button class="btn block" id="signIn">Sign in</button>
+    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+      <button class="linkbtn" id="forgot">Forgot your password?</button>
+      <span class="fine" style="margin:0">Accounts are created by the owner.</span>
+    </div>
+  </div></div>
+  <div class="split-right">
+    <span class="eyebrow">How it works:</span>
+    <p class="kicker">Files in.<br>Numbers out.<br><em>Answers on screen.</em></p>
+    <div class="phase-row"><div class="phase-num">01</div><div>
+      <h2>Upload</h2><p>Submit your file. Who, what and when are recorded by the server — not typed in by anyone.</p></div></div>
+    <div class="phase-row"><div class="phase-num">02</div><div>
+      <h2>Read</h2><p>The sale amounts are pulled out of your file and added to your running total.</p></div></div>
+    <div class="phase-row"><div class="phase-num">03</div><div>
+      <h2>Dashboards</h2><p>You see your own numbers. The owner sees everyone.</p></div></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <aside id="sidebar">
+    <div class="side-head">
+      <div class="mark">C</div>
+      <div><b>Commissions</b><small id="orgLine">Internal portal</small></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="side-card" id="sidePeriod"></div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div><h1 id="viewTitle">Overview</h1><p class="sub" id="viewSub"></p></div>
+      <div class="topbar-right">
+        <label class="search"><span aria-hidden="true">⌕</span>
+          <input type="search" id="search" placeholder="Search"></label>
+        <select class="select" id="periodSel"></select>
+        <div class="user-chip">
+          <div class="avatar" id="meAvatar"></div>
+          <div><b id="meName"></b><small id="meRole"></small></div>
+        </div>
+        <button class="btn ghost small" id="signOut">Sign out</button>
+      </div>
+    </header>
+    <div id="views"><div class="loading"><div class="spinner"></div>Loading your data…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/core.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/view-overview.js"></script>
+<script src="js/view-person.js"></script>
+<script src="js/view-team.js"></script>
+<script src="js/view-submissions.js"></script>
+<script src="js/view-settings.js"></script>
+<script src="js/view-submit.js"></script>
+<script src="js/file-parsing.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
