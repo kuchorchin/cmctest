@@ -3,7 +3,7 @@
       Supabase dashboard → Settings → API
    ===================================================================== */
 const SUPABASE_URL = 'https://zgrctlzcawsamtyqbmhp.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpncmN0bHpjYXdzYW10eXFibWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTQ5NzAsImV4cCI6MjEwMjg3MDk3MH0.W_yGJzqVLD3k_WO2NXs4AVsQ8WlQ0zfnXdIJtX26_zQ';
+const SUPABASE_KEY = 'sb_publishable_qBJmyQ9Q27oo6FTaiT3AXg_cWsRSTj0';
 
 /* ===================================================================== */
 
