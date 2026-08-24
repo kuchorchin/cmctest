@@ -8,18 +8,19 @@ function viewSubmit(){
     $('#views').innerHTML = `<div class="card">${emptyState('No period is open right now','The owner opens a period when it is time to collect files.')}</div>`;
     return;
   }
-  const existing = rowsFor(STATE.me.id, op.id)[0];
+  const mine = rowsFor(STATE.me.id, op.id);
   setHead('Submit a file', `${op.label} · due ${shortTime(op.due_at)}.`);
 
   $('#views').innerHTML = `
     <div class="grid g-2-1">
       <div class="card">
-        <div class="card-head"><h3>${existing?'Replace your file':'Upload your sales file'}</h3>
+        <div class="card-head"><h3>${mine.length?'Send another file':'Upload your sales file'}</h3>
           <div class="right"><span class="eyebrow">${esc(op.label)}</span></div></div>
-        ${existing ? `<div class="note" style="margin-bottom:14px"><b>You already submitted ${esc(existing.file_name)}.</b>
-          <span>Uploading again replaces it, and the clock starts over — the new time is what counts.</span></div>` : ''}
+        ${mine.length ? `<div class="note" style="margin-bottom:14px"><b>You have sent ${mine.length} file${mine.length===1?'':'s'} for ${esc(op.label)}.</b>
+          <span>Anything you add now counts on top of them. To take one back, remove it under
+          <button class="linkbtn" data-goto="submissions">My submissions</button>.</span></div>` : ''}
         <div class="drop" id="drop">
-          <h4>Drop your file here</h4>
+          <h4>Drop ${mine.length?'another':'your'} file here</h4>
           <p>.csv or .xlsx — one row per sale</p>
           <div class="drop-actions">
             <button class="btn small" id="pick">Choose a file</button>
@@ -33,7 +34,7 @@ function viewSubmit(){
         <div class="card-head"><h3>What happens next</h3></div>
         <div class="steps">
           <div class="step" data-step="1"><div class="step-dot">1</div><div><b>File read</b><small>Your sale rows are pulled out here in your browser.</small></div></div>
-          <div class="step" data-step="2"><div class="step-dot">2</div><div><b>Original stored</b><small>The untouched file is kept, so anything can be checked later.</small></div></div>
+          <div class="step" data-step="2"><div class="step-dot">2</div><div><b>Original stored</b><small>The untouched file is kept alongside your earlier ones, so anything can be checked later.</small></div></div>
           <div class="step" data-step="3"><div class="step-dot">3</div><div><b>Time recorded</b><small>The server writes the timestamp and decides on time or late.</small></div></div>
           <div class="step" data-step="4"><div class="step-dot">4</div><div><b>Total updated</b><small>Your commission moves on your dashboard.</small></div></div>
         </div>
@@ -75,14 +76,6 @@ async function submitFile(file, period){
   const up = await sb.storage.from('submissions').upload(path, file, { upsert:false });
   if(up.error) return failResult(result, 'Uploading the file', up.error);
   lightStep(2);
-
-  // --- replace any earlier submission for this period ---
-  const old = rowsFor(me.id, period.id)[0];
-  if(old){
-    const del = await sb.from('submissions').delete().eq('id', old.submission_id);
-    if(del.error) return failResult(result, 'Replacing your earlier file', del.error);
-    await sb.storage.from('submissions').remove([old.file_path]);
-  }
 
   // --- record it. the server sets who, when, and late. ---
   const ins = await sb.from('submissions').insert({
@@ -135,7 +128,8 @@ async function submitFile(file, period){
         <tr><td colspan="2"><b>Sales in this file</b></td><td class="num"><b>${money(salesTotal)}</b></td></tr>
       </tbody></table>
       <div class="note" style="margin-top:14px;background:#fff"><span><b>Running total updated.</b>
-        Your commission went from ${money(before)} to <b>${money(after)}</b>.
+        Your commission went from ${money(before)} to <b>${money(after)}</b>, across
+        ${totals(me.id, period.id).files} file${totals(me.id, period.id).files===1?'':'s'} for ${esc(period.label)}.
         <button class="btn small" data-goto="overview" style="margin-left:8px">See my dashboard</button></span></div>
     </div>`;
   wireGoto();

@@ -87,7 +87,8 @@ their browser's dev tools.
 |---|---|---|
 | Their own profile | read | read + edit anyone |
 | Everyone else's profile | **not visible** | visible |
-| Their own submissions and sales | read, upload, replace | visible |
+| Their own submissions and sales | read, upload, remove | visible |
+| Removing someone else's submission | **not allowed** | allowed |
 | Everyone else's submissions | **not visible** | visible |
 | Uploaded files in storage | own folder only | all folders |
 | Periods and deadlines | read | read + edit, open/close |
@@ -99,8 +100,12 @@ A few rules worth knowing:
   submission, and whether it counts as late are all set by the database from
   the period's deadline. The browser cannot influence any of them.
 - **A closed period refuses uploads.** Closing a period freezes its numbers.
-- **One live file per person per period.** Uploading again replaces the
-  previous file, and the clock restarts — the new timestamp is what counts.
+- **Several files per period are allowed.** Every file a person sends counts
+  towards their total for that period, each with its own received time and its
+  own on-time or late verdict.
+- **Removing a file is scoped by role.** A sales account can take back its own
+  submissions and no one else's; the owner can remove anybody's. Removing one
+  deletes its sale rows too, so the commission total moves immediately.
 - **Sale rows inherit their owner** from the file they belong to, so rows
   cannot be planted in someone else's numbers.
 

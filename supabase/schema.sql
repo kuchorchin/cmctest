@@ -54,9 +54,9 @@ create table if not exists public.submissions (
   status       text        not null default 'read' check (status in ('read', 'needs_review')),
   submitted_at timestamptz not null default now(),
   is_late      boolean     not null default false,
-  days_late    integer     not null default 0,
-  -- one live file per person per period; replacing deletes the old row first
-  unique (user_id, period_id)
+  days_late    integer     not null default 0
+  -- deliberately no unique constraint: a person may send several files for
+  -- one period, and every one of them counts towards their total
 );
 
 create table if not exists public.sale_rows (
@@ -73,6 +73,30 @@ create table if not exists public.sale_rows (
 create index if not exists sale_rows_submission_idx on public.sale_rows (submission_id);
 create index if not exists sale_rows_user_period_idx on public.sale_rows (user_id, period_id);
 create index if not exists submissions_user_period_idx on public.submissions (user_id, period_id);
+
+
+-- Earlier versions of this file allowed only one file per person per period.
+-- Dropping that constraint here so a database built then picks up the change
+-- on a re-run.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select con.conname
+      from pg_constraint con
+     where con.conrelid = 'public.submissions'::regclass
+       and con.contype = 'u'
+       and (select array_agg(a.attname::text order by a.attname)
+              from pg_attribute a
+             where a.attrelid = con.conrelid and a.attnum = any (con.conkey))
+           = array['period_id', 'user_id']
+  loop
+    execute format('alter table public.submissions drop constraint %I', r.conname);
+    raise notice 'Removed the one-file-per-period limit (%).', r.conname;
+  end loop;
+end;
+$$;
 
 
 -- ---------------------------------------------------------------------
