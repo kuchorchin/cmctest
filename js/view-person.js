@@ -11,7 +11,7 @@ function viewPerson(userId, asOwner){
   const t = totals(userId,pid), tPrev = prev ? totals(userId,prev.id) : null;
   const tim = timing(userId);
   const series = cps.map(p=>totals(userId,p.id).commission);
-  const sub = rowsFor(userId,pid)[0];
+  const subs = rowsFor(userId,pid);
   const op = openPeriod();
 
   setHead(asOwner ? who.full_name : `Hello, ${who.full_name.split(' ')[0]}`,
@@ -36,7 +36,8 @@ function viewPerson(userId, asOwner){
       ${statCard('Deals in the file', String(t.deals), `<span class="delta">${t.files} file${t.files===1?'':'s'} this period</span>`,
         cps.map(p=>totals(userId,p.id).deals), '▤')}
       ${statCard('On time', tim.pct+'%', `<span class="delta">${tim.late} late of ${tim.total}</span>`,
-        cps.map(p=>{const l=rowsFor(userId,p.id);return l.length?(l[0].is_late?0:100):0;}), '◷')}
+        cps.map(p=>{const l=rowsFor(userId,p.id);
+          return l.length ? Math.round(l.filter(x=>!x.is_late).length/l.length*100) : 0;}), '◷')}
     </div>
 
     <div class="grid g-2-1">
@@ -53,19 +54,21 @@ function viewPerson(userId, asOwner){
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>What was in the ${esc(per?.label||'')} file</h3>
-        <div class="right"><span class="eyebrow" id="rowsMeta">${sub ? sub.row_count+' rows' : 'nothing yet'}</span></div></div>
-      <div id="dealArea">${sub ? '<div class="loading"><div class="spinner"></div>Reading rows…</div>'
+      <div class="card-head"><h3>What was in the ${esc(per?.label||'')} ${subs.length===1?'file':'files'}</h3>
+        <div class="right"><span class="eyebrow" id="rowsMeta">${subs.length
+          ? subs.reduce((a,r)=>a+Number(r.row_count||0),0)+' rows across '+subs.length+' file'+(subs.length===1?'':'s')
+          : 'nothing yet'}</span></div></div>
+      <div id="dealArea">${subs.length ? '<div class="loading"><div class="spinner"></div>Reading rows…</div>'
         : emptyState('No file for this period','Submit one and the rows will be listed here.')}</div>
     </div>`;
   bindChart('personChart');
-  if(sub) loadDeals(sub, who);
+  if(subs.length) loadDeals(subs, who);
 }
 
-async function loadDeals(sub, who){
+async function loadDeals(subs, who){
   const { data, error } = await sb.from('sale_rows')
     .select('sale_date, customer, amount, rate')
-    .eq('submission_id', sub.submission_id)
+    .in('submission_id', subs.map(s=>s.submission_id))
     .order('sale_date');
   const area = $('#dealArea'); if(!area) return;
   if(error){ area.innerHTML = emptyState('Could not load the rows', error.message); return; }
@@ -79,7 +82,7 @@ async function loadDeals(sub, who){
       <td class="num">${money(r.amount)}</td>
       <td class="num">${money2(Number(r.amount)*(r.rate!=null?Number(r.rate):rate))}</td></tr>`).join('')}
       <tr><td colspan="2"><b>Total</b></td>
-        <td class="num"><b>${money(sub.sales_total)}</b></td>
-        <td class="num"><b>${money2(sub.commission)}</b></td></tr></tbody></table>`;
+        <td class="num"><b>${money(subs.reduce((a,s)=>a+Number(s.sales_total||0),0))}</b></td>
+        <td class="num"><b>${money2(subs.reduce((a,s)=>a+Number(s.commission||0),0))}</b></td></tr></tbody></table>`;
 }
 

@@ -25,11 +25,11 @@ function viewSettings(){
 
     <div class="card">
       <div class="card-head"><h3>Periods and deadlines</h3></div>
-      <table><thead><tr><th>Period</th><th>Deadline</th><th>Files in</th><th>Status</th><th></th></tr></thead>
+      <table><thead><tr><th>Period</th><th>Deadline</th><th>People in</th><th>Status</th><th></th></tr></thead>
         <tbody>${STATE.periods.slice(0,14).map(p=>`<tr data-period="${p.id}">
           <td><b style="font-weight:500">${esc(p.label)}</b><div class="mono" style="color:var(--muted)">${p.id}</div></td>
           <td><input class="mini wide" type="datetime-local" data-f="due" value="${toLocalInput(p.due_at)}"></td>
-          <td class="num">${rowsFor(null,p.id).length} of ${reps().length}</td>
+          <td class="num">${new Set(rowsFor(null,p.id).map(r=>r.user_id)).size} of ${reps().length}<div class="mono" style="color:var(--muted)">${rowsFor(null,p.id).length} file${rowsFor(null,p.id).length===1?'':'s'}</div></td>
           <td>${p.is_open?'<span class="badge ok">Open</span>':'<span class="badge neutral">Closed</span>'}</td>
           <td><button class="btn ghost small save-period">Save</button>
             <button class="btn ghost small toggle-period" style="margin-left:6px">${p.is_open?'Close':'Open'}</button></td>

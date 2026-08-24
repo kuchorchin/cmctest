@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --paper:#F3F1EB; --card:#FFFFFF; --ink:#15140F; --ink-2:#57524A; --muted:#928B7E;
+  --line:#E5E0D6; --line-soft:#F0ECE3;
+  --taupe:#B7A691; --taupe-deep:#8B7A64; --taupe-pale:#DED5C6;
+  --ok:#2E7350; --ok-bg:#E7F0EA; --late:#A9721E; --late-bg:#F6EEDF;
+  --bad:#A23D2E; --bad-bg:#F6E7E4;
+  --r-lg:18px; --r-md:12px; --r-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:"Instrument Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-0.015em}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select{font:inherit;color:inherit}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;letter-spacing:-0.02em}
+.serif{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
+.hidden{display:none !important}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+
+/* shell — sidebar 25% / dashboard 75% */
+#shell{display:grid;grid-template-columns:minmax(258px,25%) 1fr;gap:14px;padding:14px;min-height:100vh;align-items:start}
+#sidebar{background:var(--card);border-radius:var(--r-lg);padding:18px 16px;display:flex;flex-direction:column;gap:18px;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto}
+.side-head{display:flex;align-items:center;gap:10px;padding:0 2px}
+.mark{width:34px;height:34px;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-family:"Instrument Serif",serif;font-size:18px;line-height:1;padding-bottom:2px;flex:none}
+.side-head b{display:block;font-size:13px}
+.side-head small{color:var(--muted);font-size:11px}
+.main{min-width:0;display:flex;flex-direction:column;gap:14px;padding-bottom:20px}
+
+/* buttons / fields */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:var(--r-md);background:var(--ink);color:#fff;font-weight:500;transition:opacity .15s,transform .12s ease,box-shadow .15s}
+.btn:hover{opacity:.86;transform:translateY(-1px);box-shadow:0 4px 10px rgba(21,20,15,.12)}
+.btn:active{transform:translateY(0) scale(.97);opacity:1;box-shadow:none;transition:transform .06s ease}
+.btn.block{width:100%}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.btn.small{padding:7px 12px;font-size:13px}
+.linkbtn{color:var(--ink-2);font-size:12.5px;text-decoration:underline;text-underline-offset:3px;transition:color .15s}
+.linkbtn:hover{color:var(--ink)}
+.fine{font-size:11.5px;color:var(--muted);line-height:1.5}
+.select{-webkit-appearance:none;-moz-appearance:none;appearance:none;width:100%;background:var(--paper) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="%2357524A" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat right 12px center;border:1px solid transparent;border-radius:var(--r-sm);padding:7px 30px 7px 11px;font-size:12.5px;font-family:inherit;cursor:pointer;text-overflow:ellipsis}
+.select:focus{outline:none;border-color:var(--ink)}
+.field{display:block}
+.field span{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:4px}
+
+/* drop zone */
+.drop{border:1.5px dashed var(--line);border-radius:var(--r-md);padding:30px 16px;text-align:center;transition:border-color .15s,background .15s;cursor:pointer}
+.drop:hover{border-color:var(--taupe-deep);background:var(--line-soft)}
+.drop.over{border-color:var(--ink);background:var(--line-soft)}
+.drop .glyph{font-size:22px;line-height:1;margin-bottom:10px;color:var(--taupe-deep)}
+.drop h4{font-size:14.5px;margin-bottom:5px}
+.drop p{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.filecard{background:var(--paper);border-radius:var(--r-md);padding:13px}
+.filecard .row{display:flex;align-items:flex-start;gap:10px}
+.filecard b{font-size:13px;font-weight:500;word-break:break-all;line-height:1.35}
+.filecard small{display:block;color:var(--muted);font-size:11.5px;margin-top:3px}
+.filecard .btn{margin-top:12px}
+.sec{display:flex;flex-direction:column;gap:9px}
+.sec-title{display:flex;align-items:center;gap:8px}
+.sec-title .eyebrow{flex:1}
+.hr{height:1px;background:var(--line-soft)}
+.notelist{display:flex;flex-direction:column;gap:7px}
+.note{display:flex;gap:8px;font-size:12px;color:var(--ink-2);line-height:1.45}
+.note::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--taupe);flex:none;margin-top:6px}
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;background:var(--paper);color:var(--ink-2);border-radius:5px;padding:2px 6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.miss{color:var(--bad)}
+
+/* topbar + cards */
+.topbar{background:var(--card);border-radius:var(--r-lg);padding:15px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.topbar h1{font-size:19px}
+.topbar .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.card{background:var(--card);border-radius:var(--r-lg);padding:18px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.card-head h3{font-size:14.5px}
+.card-head .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.stat .label{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:12.5px}
+.stat .label .chip{width:24px;height:24px;border-radius:7px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.stat .value{font-family:"Instrument Serif",Georgia,serif;font-size:38px;line-height:1.1;margin:12px 0 4px;word-break:break-all}
+.stat .delta{font-size:12px;color:var(--muted)}
+.stat svg{display:block;margin-top:12px}
+.seg{display:inline-flex;background:var(--paper);border-radius:99px;padding:3px}
+.seg button{padding:5px 12px;border-radius:99px;font-size:12.5px;color:var(--ink-2);transition:background .15s,color .15s}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+
+/* table */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:0 10px 9px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line-soft);font-size:13px}
+th:first-child,td:first-child{padding-left:0}
+th:last-child,td:last-child{padding-right:0}
+th.r,td.r{text-align:right}
+tbody tr:hover td{background:var(--line-soft)}
+tfoot td{border-bottom:none;border-top:1px solid var(--line);font-weight:600;padding-top:12px}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--ink)}
+th .arrow{opacity:.55;margin-left:3px}
+.tablewrap{max-height:460px;overflow-y:auto;overflow-x:auto}
+.tablewrap thead th{position:sticky;top:0;background:var(--card);z-index:1}
+
+/* chart */
+.chart-wrap{position:relative}
+.chart-wrap svg{display:block;width:100%;height:auto;touch-action:none}
+.chart-tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;padding:7px 11px;border-radius:var(--r-sm);font-size:11.5px;white-space:nowrap;transform:translate(-50%,-136%);opacity:0;transition:opacity .12s;z-index:2;line-height:1.5}
+.chart-tip b{font-size:13px;display:block;font-variant-numeric:tabular-nums}
+.chart-tip span{color:var(--taupe)}
+
+/* states */
+.alert{background:var(--bad-bg);color:var(--bad);padding:14px 16px;border-radius:var(--r-md);font-size:13px;line-height:1.55}
+.alert b{display:block;margin-bottom:4px;font-size:13.5px}
+.alert .heads{margin-top:9px;color:var(--ink-2);font-size:12px;word-break:break-word}
+.warnbar{background:var(--late-bg);color:var(--late);padding:11px 14px;border-radius:var(--r-md);font-size:12.5px;line-height:1.5}
+.empty{padding:48px 20px;text-align:center;color:var(--muted);font-size:13px}
+.empty b{display:block;color:var(--ink);font-weight:500;margin-bottom:5px;font-size:15px}
+.hero{background:var(--ink);color:#EDE9E0;border-radius:var(--r-lg);padding:40px 38px}
+.hero .eyebrow{color:var(--taupe)}
+.hero .kicker{font-family:"Instrument Serif",Georgia,serif;font-size:30px;line-height:1.15;color:#fff;margin:12px 0 26px}
+.hero .kicker em{color:var(--taupe);font-style:italic}
+.phase-row{display:flex;gap:16px;padding:16px 0;border-top:1px solid #2C2A24}
+.phase-num{font-family:"Instrument Serif",Georgia,serif;font-size:26px;color:var(--taupe);line-height:1;width:34px;flex:none}
+.phase-row h2{font-size:14.5px;color:#fff}
+.phase-row p{color:#9F988A;font-size:13px;margin-top:3px;line-height:1.5}
+.spinner{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px;color:var(--muted)}
+#dropveil{position:fixed;inset:0;background:rgba(21,20,15,.55);z-index:50;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .15s}
+#dropveil.on{opacity:1}
+#dropveil div{background:var(--card);border-radius:var(--r-lg);padding:22px 30px;font-size:15px;font-weight:500}
+
+@media (max-width:1000px){
+  #shell{grid-template-columns:1fr;padding:10px;gap:10px}
+  #sidebar{position:static;max-height:none}
+  .g2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <!-- ================= SIDEBAR ================= -->
+  <aside id="sidebar">
+    <div class="side-head">
+      <div class="mark">S</div>
+      <div><b>Sales dashboard</b><small>Reads your file in this browser</small></div>
+    </div>
+
+    <div id="dropzone" class="drop" role="button" tabindex="0" aria-label="Drop a sales file here or press Enter to browse">
+      <div class="glyph">&#8681;</div>
+      <h4>Drop your sales file</h4>
+      <p>.xlsx &middot; .xls &middot; .csv</p>
+      <span class="btn small">Browse files</span>
+    </div>
+
+    <div id="filebox" class="hidden"></div>
+    <div id="sheetbox" class="hidden"></div>
+    <div id="mapbox" class="hidden"></div>
+    <div id="notebox" class="hidden"></div>
+
+    <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.xlsm,.csv,.tsv,.txt">
+    <div class="fine" style="margin-top:auto;padding-top:8px">Your file never leaves this computer — it is read in the browser and forgotten when you close the tab.</div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <header class="topbar">
+      <div style="min-width:0">
+        <h1 id="viewTitle">Sales overview</h1>
+        <p class="sub" id="viewSub">No file loaded yet.</p>
+      </div>
+      <div class="topbar-right" id="topbarRight"></div>
+    </header>
+    <div id="views"></div>
+  </div>
+</div>
+
+<div id="dropveil"><div>Release to load this file</div></div>
+
+<script>
+/* =====================================================================
+   0. HELPERS
+   ===================================================================== */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = (h) => String(h == null ? '' : h).replace(/\s+/g, ' ').trim().toLowerCase();
+
+const STATE = {
+  fileName: '', fileSize: 0,
+  sheetNames: [], sheetIndex: 0, getMatrix: null,
+  matrix: null, headers: [], headerIndex: 0,
+  auto: {}, override: {}, mapping: {},
+  rows: [], daily: [], totals: null,
+  warnings: [], error: null,
+  metric: 'amount', sort: { key: 'date', dir: 'asc' },
+  currency: '$', qtyDecimals: 0,
+};
+
+/* ---- number & currency formatting ---- */
+function fmtAmount(n) {
+  const v = Number(n) || 0;
+  return STATE.currency + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtQty(n) {
+  const v = Number(n) || 0;
+  const d = STATE.qtyDecimals;
+  return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtMetric(n, metric) { return metric === 'amount' ? fmtAmount(n) : fmtQty(n); }
+function compact(n, isMoney) {
+  const a = Math.abs(n);
+  let s;
+  if (a >= 1e9) s = (a / 1e9).toFixed(a >= 1e10 ? 0 : 1) + 'B';
+  else if (a >= 1e6) s = (a / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M';
+  else if (a >= 1e3) s = (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'K';
+  else s = String(Math.round(a * 100) / 100);
+  s = s.replace(/\.0(?=[KMB]?$)/, '');
+  return (n < 0 ? '-' : '') + (isMoney ? STATE.currency : '') + s;
+}
+function fileSizeLabel(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+/* =====================================================================
+   1. VALUE COERCION
+   Real exports are messy: text-formatted numbers, currency symbols,
+   European separators, trailing-minus, dates in five different shapes.
+   ===================================================================== */
+function toNumber(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  if (v == null) return null;
+  if (typeof v === 'boolean') return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  if (/^[-–—−.]*$/.test(s)) return null;      // "-", "--", "."
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }  // (1,275.00)
+  if (/-\s*$/.test(s)) neg = true;                             // 1275.00-  (SAP)
+  if (/^\s*-/.test(s)) neg = true;
+  s = s.replace(/[\s\u00A0\u202F'\u2019]/g, '');            // spaces / apostrophe groupers
+  s = s.replace(/[^0-9.,]/g, '');                              // drop currency symbols & letters
+  if (!s || !/[0-9]/.test(s)) return null;
+  const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+  if (lastComma > -1 && lastDot > -1) {
+    // whichever separator comes last is the decimal point
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');   // 1.234,56
+    else s = s.replace(/,/g, '');                                          // 1,234.56
+  } else if (lastComma > -1) {
+    const parts = s.split(',');
+    // a lone comma with a non-3-digit tail is a decimal comma: 1,5 / 12,75
+    if (parts.length === 2 && parts[1].length !== 3) s = parts[0] + '.' + parts[1];
+    else s = s.replace(/,/g, '');
+  }
+  const n = parseFloat(s);
+  if (isNaN(n) || !isFinite(n)) return null;
+  return neg ? -Math.abs(n) : n;
+}
+
+const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, nov:11, dec:12 };
+const pad2 = (n) => String(n).padStart(2, '0');
+const keyOf = (y, m, d) => y + '-' + pad2(m) + '-' + pad2(d);
+
+function validYMD(y, m, d) {
+  if (!(y >= 1900 && y <= 2200)) return false;
+  if (!(m >= 1 && m <= 12)) return false;
+  if (!(d >= 1 && d <= 31)) return false;
+  return new Date(y, m - 1, d).getDate() === d;   // rejects 31 Feb
+}
+
+/* Excel stores dates as a day count. Convert with UTC maths so the answer
+   does not shift with the reader's time zone. */
+function fromSerial(v) {
+  if (!(v >= 20000 && v < 80000)) return null;    // ~1954-2119; anything else is not a date
+  const ms = Math.round((Math.floor(v) - 25569) * 86400000);
+  const d = new Date(ms);
+  if (isNaN(d)) return null;
+  return keyOf(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+}
+
+/* Returns a 'YYYY-MM-DD' key, or null. dayFirst resolves 3/7/2026. */
+function toDateKey(v, dayFirst) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date) {
+    if (isNaN(v)) return null;
+    return keyOf(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  }
+  if (typeof v === 'number') return fromSerial(v);
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[T\s].*)?$/);          // 2026-03-07
+  if (m) {
+    const [y, mo, d] = [+m[1], +m[2], +m[3]];
+    return validYMD(y, mo, d) ? keyOf(y, mo, d) : null;
+  }
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})(?:[T\s].*)?$/);            // 3/7/2026
+  if (m) {
+    let [a, b, y] = [+m[1], +m[2], +m[3]];
+    if (y < 100) y += y < 70 ? 2000 : 1900;
+    let [d, mo] = dayFirst ? [a, b] : [b, a];
+    if (!validYMD(y, mo, d)) { [d, mo] = [mo, d]; }                                 // fall back to the other reading
+    return validYMD(y, mo, d) ? keyOf(y, mo, d) : null;
+  }
+  m = s.match(/^(\d{1,2})[\s-]([A-Za-z]{3,9})[\s-](\d{2,4})$/);                     // 7 Mar 2026
+  if (m) {
+    let y = +m[3]; if (y < 100) y += y < 70 ? 2000 : 1900;
+    const mo = MONTHS[m[2].slice(0, 4).toLowerCase()] || MONTHS[m[2].slice(0, 3).toLowerCase()];
+    return mo && validYMD(y, mo, +m[1]) ? keyOf(y, mo, +m[1]) : null;
+  }
+  m = s.match(/^([A-Za-z]{3,9})\.?\s(\d{1,2}),?\s(\d{2,4})$/);                      // Mar 7, 2026
+  if (m) {
+    let y = +m[3]; if (y < 100) y += y < 70 ? 2000 : 1900;
+    const mo = MONTHS[m[1].slice(0, 4).toLowerCase()] || MONTHS[m[1].slice(0, 3).toLowerCase()];
+    return mo && validYMD(y, mo, +m[2]) ? keyOf(y, mo, +m[2]) : null;
+  }
+  m = s.match(/^(\d{8})$/);                                                          // 20260307
+  if (m) {
+    const y = +s.slice(0, 4), mo = +s.slice(4, 6), d = +s.slice(6, 8);
+    if (validYMD(y, mo, d)) return keyOf(y, mo, d);
+  }
+  if (/^\d+(\.\d+)?$/.test(s)) return fromSerial(parseFloat(s));                     // serial as text
+  const d = new Date(s);                                                             // last resort
+  if (!isNaN(d) && d.getFullYear() >= 1900 && d.getFullYear() <= 2200) {
+    return keyOf(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  return null;
+}
+
+/* 3/7/2026 is ambiguous. If any value in the column has a first part above
+   12, the whole column is day/month/year. */
+function detectDayFirst(values) {
+  let dmy = 0, mdy = 0;
+  for (const v of values) {
+    const m = String(v == null ? '' : v).trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.]\d{2,4}/);
+    if (!m) continue;
+    if (+m[1] > 12) dmy++;
+    else if (+m[2] > 12) mdy++;
+  }
+  return dmy > mdy;
+}
+
+/* =====================================================================
+   2. COLUMN DETECTION
+   Headings are scored, not matched, then the winning column is checked
+   against its own values — a heading called "Units" that holds "EA, BOX"
+   is not a quantity column.
+   ===================================================================== */
+const FIELDS = {
+  date: {
+    label: 'Date',
+    kind: 'date',
+    exact: ['sale date', 'sales date', 'order date', 'invoice date', 'document date',
+            'billing date', 'transaction date', 'posting date', 'closed date',
+            'date', 'day', 'sold on', 'created at', 'timestamp'],
+    contains: ['date', 'day'],
+    never: ['due', 'delivery status', 'planned', 'birth', 'expiry', 'expiration', 'update'],
+  },
+  qty: {
+    label: 'Quantity',
+    kind: 'number',
+    exact: ['sales quantity', 'sales qty', 'sale quantity', 'order quantity',
+            'billed quantity', 'quantity sold', 'units sold', 'quantity', 'qty',
+            'units', 'unit sold', 'pieces', 'pcs', 'volume', 'count'],
+    contains: ['quantity', 'qty', 'units sold', 'pieces'],
+    never: ['price', 'amount', 'value', 'revenue', 'total', 'rate', 'cost',
+            'uom', 'unit of measure', 'per unit', 'code', 'no.', 'number', 'id'],
+  },
+  amount: {
+    label: 'Amount',
+    kind: 'number',
+    exact: ['sales amount', 'sale amount', 'net amount', 'gross amount', 'total amount',
+            'amount after vat', 'amount paid', 'order value', 'sales value', 'net value',
+            'line total', 'total revenue', 'revenue', 'amount', 'total', 'turnover',
+            'sales', 'value', 'net sales', 'grand total', 'subtotal'],
+    contains: ['amount', 'revenue', 'turnover', 'net value', 'total', 'value', 'sales'],
+    never: ['quantity', 'qty', 'units', 'discount', 'reject', 'tax', 'vat rate',
+            'freight', 'rate', 'commission', 'count', 'unit price', 'cost price'],
+  },
+};
+
+function scoreHeading(heading, field) {
+  const s = norm(heading);
+  if (!s) return 0;
+  const rule = FIELDS[field];
+  if (rule.never.some((bad) => s.includes(bad))) return 0;
+  const i = rule.exact.indexOf(s);
+  if (i !== -1) return 1000 - i;                                   // exact heading
+  const j = rule.exact.findIndex((a) => s.startsWith(a) || s.endsWith(a));
+  if (j !== -1) return 700 - j;                                    // "amount after vat ($)"
+  if (rule.contains.some((c) => s.includes(c))) return 400 - Math.min(s.length, 60);
+  return 0;
+}
+
+/* What share of this column's values actually parse as the expected kind? */
+function columnQuality(body, index, kind, dayFirst) {
+  let seen = 0, ok = 0;
+  for (let i = 0; i < body.length && seen < 250; i++) {
+    const v = body[i] ? body[i][index] : null;
+    if (v == null || v === '') continue;
+    seen++;
+    if (kind === 'number') { if (toNumber(v) !== null) ok++; }
+    else { if (toDateKey(v, dayFirst) !== null) ok++; }
+  }
+  return { seen, share: seen ? ok / seen : 0 };
+}
+
+/* Best column per field: highest-scoring heading whose values hold up. */
+function pickMapping(headerRow, body) {
+  const mapping = {};
+  const taken = new Set();
+  const order = ['date', 'amount', 'qty'];         // date first: it never competes with the other two
+  for (const field of order) {
+    const rule = FIELDS[field];
+    const ranked = headerRow
+      .map((h, i) => ({ i, points: scoreHeading(h, field) }))
+      .filter((c) => c.points > 0 && !taken.has(c.i))
+      .sort((a, b) => b.points - a.points);
+    if (!ranked.length) continue;
+
+    const dayFirst = field === 'date'
+      ? detectDayFirst(body.map((r) => (r ? r[ranked[0].i] : null)))
+      : false;
+
+    let chosen = null, fallback = null;
+    for (const c of ranked.slice(0, 6)) {
+      const q = columnQuality(body, c.i, rule.kind, dayFirst);
+      if (q.seen === 0) continue;
+      if (q.share >= 0.6) { chosen = c; break; }
+      if (!fallback && q.share >= 0.25) fallback = c;
+    }
+    const win = chosen || fallback;
+    if (win) { mapping[field] = win.i; taken.add(win.i); }
+  }
+  return mapping;
+}
+
+/* Exports often carry title rows above the real headings. Score each of the
+   first rows by how much of a usable mapping it produces. */
+function findHeaderRow(clean) {
+  const weight = { date: 3, amount: 3, qty: 2 };
+  let best = { index: 0, points: -1 };
+  const limit = Math.min(clean.length, 25);
+  for (let i = 0; i < limit; i++) {
+    const body = clean.slice(i + 1, i + 60);
+    if (!body.length) break;
+    const mapping = pickMapping(clean[i] || [], body);
+    let points = Object.keys(mapping).reduce((a, f) => a + weight[f], 0);
+    points += Math.min((clean[i] || []).filter((c) => c != null && c !== '').length, 12) * 0.05;
+    if (points > best.points) best = { index: i, points };
+  }
+  return best.index;
+}
+
+/* =====================================================================
+   3. BUILDING ROWS
+   ===================================================================== */
+function analyze(matrix, override) {
+  const clean = [], cleanAt = [];
+  matrix.forEach((r, i) => {
+    if (r && r.some((c) => c !== null && c !== undefined && c !== '')) { clean.push(r); cleanAt.push(i); }
+  });
+  if (!clean.length) throw new Error('This sheet is empty.');
+
+  const headerIndex = findHeaderRow(clean);
+  const skippedAbove = cleanAt[headerIndex];        // count real file rows, blanks included
+  const headerRow = (clean[headerIndex] || []).map((h) => (h == null ? '' : String(h).trim()));
+  const body = clean.slice(headerIndex + 1);
+  if (!body.length) throw new Error('This sheet has headings but no rows underneath them.');
+
+  const auto = pickMapping(headerRow, body);
+  const mapping = Object.assign({}, auto);
+  Object.keys(override || {}).forEach((f) => {
+    const v = override[f];
+    if (v === -1) delete mapping[f];              // explicitly set to "none"
+    else if (typeof v === 'number' && v >= 0) mapping[f] = v;
+  });
+
+  const warnings = [];
+
+  /* Nothing to measure. Return rather than throw: the reader still needs the
+     headings list and the column picker to put it right by hand. */
+  if (mapping.amount === undefined && mapping.qty === undefined) {
+    return { headers: headerRow, headerIndex, auto, mapping, rows: [], qtyDecimals: 0,
+             warnings: ['No quantity or amount column could be recognised on this sheet.'] };
+  }
+
+  const dayFirst = mapping.date === undefined
+    ? false
+    : detectDayFirst(body.map((r) => (r ? r[mapping.date] : null)));
+
+  const headerPrint = norm(headerRow.join('|'));
+  const rows = [];
+  let repeatedHeaders = 0, emptyRows = 0, badDates = 0, badQty = 0, badAmount = 0;
+  let fractionalQty = false;
+
+  for (const line of body) {
+    if (!line) continue;
+    if (norm(line.join('|')) === headerPrint) { repeatedHeaders++; continue; }
+
+    const amount = mapping.amount === undefined ? null : toNumber(line[mapping.amount]);
+    const qty = mapping.qty === undefined ? null : toNumber(line[mapping.qty]);
+
+    if (amount === null && qty === null) { emptyRows++; continue; }
+    if (mapping.amount !== undefined && amount === null) badAmount++;
+    if (mapping.qty !== undefined && qty === null) badQty++;
+    if (qty !== null && !Number.isInteger(qty)) fractionalQty = true;
+
+    let key = null;
+    if (mapping.date !== undefined) {
+      key = toDateKey(line[mapping.date], dayFirst);
+      if (key === null) badDates++;
+    }
+    rows.push({ key, qty: qty === null ? 0 : qty, amount: amount === null ? 0 : amount });
+  }
+
+  if (!rows.length) {
+    throw new Error('No row in this sheet held a readable number in the columns that were found.');
+  }
+
+  if (skippedAbove > 0) warnings.push('Ignored ' + skippedAbove + ' row(s) above the headings.');
+  if (repeatedHeaders) warnings.push('Ignored ' + repeatedHeaders + ' repeated heading row(s) inside the sheet.');
+  if (emptyRows) warnings.push('Skipped ' + emptyRows + ' row(s) with no quantity or amount.');
+  if (badAmount) warnings.push(badAmount + ' row(s) had no readable amount and were counted as 0.');
+  if (badQty) warnings.push(badQty + ' row(s) had no readable quantity and were counted as 0.');
+  if (badDates) warnings.push(badDates + ' row(s) had an unreadable date — they are in the totals but not in the daily breakdown.');
+  if (dayFirst) warnings.push('Dates were read as day/month/year.');
+
+  return {
+    headers: headerRow, headerIndex, auto, mapping, rows, warnings,
+    qtyDecimals: fractionalQty ? 2 : 0,
+  };
+}
+
+function aggregate(rows) {
+  const map = new Map();
+  let totalQty = 0, totalAmount = 0, dated = 0;
+  for (const r of rows) {
+    totalQty += r.qty;
+    totalAmount += r.amount;
+    if (!r.key) continue;
+    dated++;
+    const e = map.get(r.key) || { key: r.key, qty: 0, amount: 0, n: 0 };
+    e.qty += r.qty; e.amount += r.amount; e.n++;
+    map.set(r.key, e);
+  }
+  const daily = Array.from(map.values()).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return {
+    daily,
+    totals: { qty: totalQty, amount: totalAmount, rows: rows.length, dated, days: daily.length },
+  };
+}
+
+/* =====================================================================
+   4. FILE LOADING
+   ===================================================================== */
+function splitDelimited(line, delim) {
+  const out = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (q && line[i + 1] === '"') { cur += '"'; i++; continue; }
+      q = !q; continue;
+    }
+    if (ch === delim && !q) { out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+function parseDelimitedText(text) {
+  const body = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const lines = body.split('\n');
+  if (!lines.some((l) => l.trim().length)) throw new Error('This file is empty.');
+  const sample = lines.filter((l) => l.trim().length).slice(0, 20).join('\n');
+  const counts = { ',': (sample.match(/,/g) || []).length,
+                   ';': (sample.match(/;/g) || []).length,
+                   '\t': (sample.match(/\t/g) || []).length };
+  const delim = Object.keys(counts).reduce((a, b) => (counts[b] > counts[a] ? b : a), ',');
+  return lines.map((l) => splitDelimited(l, delim).map((c) => (c === '' ? null : c)));
+}
+
+function readAs(file, how) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onerror = () => reject(new Error('That file could not be opened.'));
+    r.onload = () => resolve(r.result);
+    if (how === 'text') r.readAsText(file); else r.readAsArrayBuffer(file);
+  });
+}
+
+async function loadFile(file) {
+  if (!file) return;
+  resetData();
+  STATE.fileName = file.name;
+  STATE.fileSize = file.size;
+  renderSidebar();
+  showLoading('Reading ' + file.name);
+
+  const name = file.name.toLowerCase();
+  const isText = /\.(csv|tsv|txt)$/.test(name) || file.type === 'text/csv';
+
+  try {
+    if (isText) {
+      const matrix = parseDelimitedText(await readAs(file, 'text'));
+      STATE.sheetNames = ['(the file)'];
+      STATE.sheetIndex = 0;
+      STATE.getMatrix = () => matrix;
+    } else if (/\.(xlsx|xls|xlsm|xlsb|ods)$/.test(name)) {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('The spreadsheet reader (SheetJS) did not load — check your internet connection, or save the sheet as .csv and drop that instead.');
+      }
+      const wb = XLSX.read(new Uint8Array(await readAs(file, 'buffer')), { type: 'array' });
+      if (!wb.SheetNames.length) throw new Error('This workbook has no sheets.');
+      STATE.sheetNames = wb.SheetNames.slice();
+      STATE.sheetIndex = 0;
+      STATE.getMatrix = (i) => XLSX.utils.sheet_to_json(
+        wb.Sheets[wb.SheetNames[i]], { header: 1, raw: true, blankrows: true, defval: null });
+    } else {
+      throw new Error('Only .xlsx, .xls and .csv files can be read. Save your sheet in one of those formats and try again.');
+    }
+    buildActiveSheet();
+  } catch (e) {
+    STATE.error = e.message || 'That file could not be read.';
+    STATE.matrix = null;
+  }
+  renderAll();
+}
+
+function buildActiveSheet() {
+  STATE.error = null;
+  STATE.headers = []; STATE.auto = {}; STATE.mapping = {};
+  STATE.rows = []; STATE.daily = []; STATE.totals = null; STATE.warnings = [];
+  try {
+    STATE.matrix = STATE.getMatrix(STATE.sheetIndex);
+    const out = analyze(STATE.matrix, STATE.override);
+    STATE.headers = out.headers;
+    STATE.headerIndex = out.headerIndex;
+    STATE.auto = out.auto;
+    STATE.mapping = out.mapping;
+    STATE.rows = out.rows;
+    STATE.warnings = out.warnings;
+    STATE.qtyDecimals = out.qtyDecimals;
+    STATE.currency = detectCurrency(out);
+    const agg = aggregate(out.rows);
+    STATE.daily = agg.daily;
+    STATE.totals = agg.totals;
+  } catch (e) {
+    STATE.error = e.message || 'That sheet could not be read.';
+    if (STATE.matrix) {                       // still show this sheet's own headings
+      const first = STATE.matrix.find((r) => r && r.some((c) => c != null && c !== ''));
+      STATE.headers = (first || []).map((h) => (h == null ? '' : String(h).trim()));
+    }
+  }
+}
+
+/* A best guess at the currency, from the amount heading or its first value. */
+function detectCurrency(out) {
+  const symbols = [['$', /\$|usd|dollar/i], ['€', /€|eur\b|euro/i], ['£', /£|gbp|pound/i],
+                   ['¥', /¥|jpy|cny|yen|yuan/i], ['₹', /₹|inr|rupee/i], ['د.إ ', /\baed\b|dirham/i],
+                   ['﷼', /\bsar\b|riyal/i]];
+  const head = out.mapping.amount === undefined ? '' : String(out.headers[out.mapping.amount] || '');
+  let sample = '';
+  if (out.mapping.amount !== undefined && STATE.matrix) {
+    const body = STATE.matrix.slice(out.headerIndex + 1);
+    for (let i = 0; i < body.length && i < 40; i++) {
+      const v = body[i] && body[i][out.mapping.amount];
+      if (typeof v === 'string' && v.trim()) { sample = v; break; }
+    }
+  }
+  const hay = head + ' ' + sample;
+  for (const [sym, re] of symbols) if (re.test(hay)) return sym;
+  return STATE.currency || '$';
+}
+
+function resetData() {
+  Object.assign(STATE, {
+    fileName: '', fileSize: 0, sheetNames: [], sheetIndex: 0, getMatrix: null,
+    matrix: null, headers: [], headerIndex: 0, auto: {}, override: {}, mapping: {},
+    rows: [], daily: [], totals: null, warnings: [], error: null,
+    sort: { key: 'date', dir: 'asc' },
+  });
+}
+
+/* =====================================================================
+   5. SIDEBAR
+   ===================================================================== */
+function renderSidebar() {
+  const loaded = !!STATE.fileName;
+  $('#dropzone').classList.toggle('hidden', loaded);
+
+  const filebox = $('#filebox');
+  filebox.classList.toggle('hidden', !loaded);
+  if (loaded) {
+    const bits = [];
+    if (STATE.fileSize) bits.push(fileSizeLabel(STATE.fileSize));
+    if (STATE.totals) bits.push(STATE.totals.rows.toLocaleString('en-US') + ' sale rows');
+    filebox.innerHTML =
+      '<div class="filecard"><div class="row">' +
+        '<span style="font-size:15px;line-height:1.2">&#128196;</span>' +
+        '<div style="min-width:0"><b>' + esc(STATE.fileName) + '</b>' +
+        '<small>' + bits.map(esc).join(' &middot; ') + '</small></div>' +
+      '</div><button class="btn ghost small block" id="replaceBtn">Replace file</button></div>';
+    $('#replaceBtn').addEventListener('click', () => $('#fileInput').click());
+  }
+
+  /* sheet picker — only earns its place in a multi-sheet workbook */
+  const sheetbox = $('#sheetbox');
+  const multi = STATE.sheetNames.length > 1;
+  sheetbox.classList.toggle('hidden', !multi);
+  if (multi) {
+    sheetbox.innerHTML = '<div class="sec"><div class="sec-title"><span class="eyebrow">Sheet</span>' +
+      '<span class="fine">' + STATE.sheetNames.length + ' in this file</span></div></div>';
+    const sel = document.createElement('select');
+    sel.className = 'select';
+    STATE.sheetNames.forEach((n, i) => {
+      const o = document.createElement('option');
+      o.value = String(i); o.textContent = n;           // sheet names are untrusted input
+      if (i === STATE.sheetIndex) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      STATE.sheetIndex = +sel.value;
+      STATE.override = {};
+      buildActiveSheet();
+      renderAll();
+    });
+    sheetbox.querySelector('.sec').appendChild(sel);
+  }
+
+  /* column mapping — what was detected, and a way to correct it */
+  const mapbox = $('#mapbox');
+  const showMap = loaded && STATE.headers.length > 0;
+  mapbox.classList.toggle('hidden', !showMap);
+  if (showMap) {
+    mapbox.innerHTML = '<div class="hr"></div><div class="sec" style="margin-top:16px">' +
+      '<div class="sec-title"><span class="eyebrow">Columns</span>' +
+      '<button class="linkbtn" id="resetMap">Auto-detect</button></div></div>';
+    const sec = mapbox.querySelector('.sec');
+    ['date', 'qty', 'amount'].forEach((field) => {
+      const wrap = document.createElement('label');
+      wrap.className = 'field';
+      const lab = document.createElement('span');
+      const found = STATE.mapping[field] !== undefined;
+      lab.textContent = FIELDS[field].label;
+      if (!found) { lab.textContent += ' — not found'; lab.className = 'miss'; }
+      wrap.appendChild(lab);
+
+      const sel = document.createElement('select');
+      sel.className = 'select';
+      const none = document.createElement('option');
+      none.value = '-1'; none.textContent = '(none)';
+      sel.appendChild(none);
+      STATE.headers.forEach((h, i) => {
+        if (!h) return;
+        const o = document.createElement('option');
+        o.value = String(i); o.textContent = h;         // headings are untrusted input
+        sel.appendChild(o);
+      });
+      sel.value = String(found ? STATE.mapping[field] : -1);
+      sel.addEventListener('change', () => {
+        STATE.override[field] = +sel.value;
+        buildActiveSheet();
+        renderAll();
+      });
+      wrap.appendChild(sel);
+      sec.appendChild(wrap);
+    });
+    $('#resetMap').addEventListener('click', () => {
+      STATE.override = {};
+      buildActiveSheet();
+      renderAll();
+    });
+  }
+
+  /* what the reader should know about their own file */
+  const notebox = $('#notebox');
+  const notes = STATE.warnings.slice(0, 8);
+  notebox.classList.toggle('hidden', !notes.length);
+  if (notes.length) {
+    notebox.innerHTML = '<div class="hr"></div><div class="sec" style="margin-top:16px">' +
+      '<span class="eyebrow">About this file</span><div class="notelist">' +
+      notes.map((n) => '<p class="note">' + esc(n) + '</p>').join('') + '</div></div>';
+  }
+}
+
+/* =====================================================================
+   6. MAIN VIEW
+   ===================================================================== */
+function dayLabel(key, withYear) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US',
+    withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+}
+function showLoading(msg) {
+  $('#views').innerHTML = '<div class="card"><div class="loading"><div class="spinner"></div>' + esc(msg) + '</div></div>';
+}
+
+function renderAll() {
+  renderSidebar();
+  renderMain();
+}
+
+function renderMain() {
+  const views = $('#views');
+  const right = $('#topbarRight');
+  right.innerHTML = '';
+
+  /* --- nothing loaded yet --- */
+  if (!STATE.fileName) {
+    $('#viewTitle').textContent = 'Sales overview';
+    $('#viewSub').textContent = 'No file loaded yet.';
+    views.innerHTML =
+      '<div class="hero"><span class="eyebrow">How it works</span>' +
+      '<p class="kicker">Drop a file in.<br><em>Read your numbers.</em></p>' +
+      '<div class="phase-row"><div class="phase-num">01</div><div><h2>Drop</h2>' +
+      '<p>Drag your sales export onto the panel on the left, or click it to browse. Nothing is uploaded anywhere.</p></div></div>' +
+      '<div class="phase-row"><div class="phase-num">02</div><div><h2>Match</h2>' +
+      '<p>The date, quantity and amount columns are found by name and checked against their own values. Correct them yourself if a guess is wrong.</p></div></div>' +
+      '<div class="phase-row"><div class="phase-num">03</div><div><h2>Read</h2>' +
+      '<p>Totals, a daily table and a trend line appear here the moment the file lands.</p></div></div></div>';
+    return;
+  }
+
+  /* --- the file could not be read at all --- */
+  if (STATE.error) {
+    $('#viewTitle').textContent = 'Could not read this file';
+    $('#viewSub').textContent = STATE.fileName;
+    const heads = STATE.headers.filter(Boolean).slice(0, 30);
+    views.innerHTML = '<div class="card"><div class="alert" role="alert">' +
+      '<b>' + esc(STATE.error) + '</b>' +
+      'Check that the sheet has one row per sale, with headings on a single row above them.' +
+      (heads.length ? '<div class="heads"><b style="display:inline;font-size:12px">Headings found:</b> ' +
+        heads.map(esc).join(' &middot; ') + '</div>' : '') +
+      '</div></div>';
+    return;
+  }
+
+  const t = STATE.totals;
+  const missing = ['date', 'qty', 'amount'].filter((f) => STATE.mapping[f] === undefined);
+
+  /* --- a column we cannot do without --- */
+  if (STATE.mapping.date === undefined || STATE.mapping.amount === undefined) {
+    $('#viewTitle').textContent = 'Missing a required column';
+    $('#viewSub').textContent = STATE.fileName;
+    const heads = STATE.headers.filter(Boolean).slice(0, 30);
+    views.innerHTML = '<div class="card"><div class="alert" role="alert">' +
+      '<b>No ' + listPhrase(missing.map((f) => FIELDS[f].label.toLowerCase())) + ' column could be found in this sheet.</b>' +
+      'Pick the right column under <b>Columns</b> on the left, or rename the heading in your file to ' +
+      missing.map((f) => '&ldquo;' + FIELDS[f].label + '&rdquo;').join(' / ') + ' and drop it again.' +
+      (heads.length ? '<div class="heads"><b style="display:inline;font-size:12px">Headings found:</b> ' +
+        heads.map(esc).join(' &middot; ') + '</div>' : '') +
+      '</div></div>';
+    return;
+  }
+
+  /* --- the dashboard --- */
+  const first = STATE.daily.length ? dayLabel(STATE.daily[0].key, true) : null;
+  const last = STATE.daily.length ? dayLabel(STATE.daily[STATE.daily.length - 1].key, true) : null;
+  $('#viewTitle').textContent = 'Sales overview';
+  $('#viewSub').textContent = [
+    STATE.fileName,
+    t.rows.toLocaleString('en-US') + ' sale rows',
+    STATE.daily.length ? (first === last ? first : first + ' to ' + last) : 'no readable dates',
+  ].join(' · ');
+
+  right.innerHTML = '<div class="seg" role="group" aria-label="Chart measure">' +
+    '<button data-metric="amount" aria-pressed="' + (STATE.metric === 'amount') + '">Amount</button>' +
+    '<button data-metric="qty" aria-pressed="' + (STATE.metric === 'qty') + '">Quantity</button></div>';
+  right.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    STATE.metric = b.dataset.metric;
+    renderMain();
+  }));
+
+  const qtySeries = STATE.daily.map((d) => d.qty);
+  const amtSeries = STATE.daily.map((d) => d.amount);
+  const days = STATE.daily.length || 1;
+  const qtyMissing = STATE.mapping.qty === undefined;
+
+  let html = '';
+
+  if (qtyMissing) {
+    html += '<div class="warnbar" role="alert"><b>No quantity column was found</b> — the amount side is complete, ' +
+      'but quantity is showing as zero. Pick the right column under <b>Columns</b> on the left.</div>';
+  }
+  if (t.dated < t.rows) {
+    html += '<div class="warnbar">' + (t.rows - t.dated).toLocaleString('en-US') +
+      ' row(s) had no readable date. They are counted in the totals below, but not in the daily figures.</div>';
+  }
+
+  /* summary cards */
+  html += '<div class="grid g2">' +
+    statCard('Total sales quantity', qtyMissing ? '&mdash;' : fmtQty(t.qty), '&#9633;',
+      qtyMissing ? 'No quantity column' : 'Across ' + days.toLocaleString('en-US') + ' day' + (days === 1 ? '' : 's') +
+        ' &middot; ' + fmtQty(t.qty / days) + ' a day on average',
+      qtyMissing ? [] : qtySeries) +
+    statCard('Total sales amount', fmtAmount(t.amount), '&#8776;',
+      fmtAmount(t.amount / days) + ' a day on average',
+      amtSeries) +
+    '</div>';
+
+  /* trend chart */
+  const metricName = STATE.metric === 'amount' ? 'sales amount' : 'sales quantity';
+  html += '<div class="card"><div class="card-head"><h3>Daily ' + metricName + '</h3>' +
+    '<div class="right"><span class="fine">Hover or use &larr; &rarr; to read a day</span></div></div>' +
+    chartHTML(STATE.daily, STATE.metric) + '</div>';
+
+  /* daily table */
+  html += '<div class="card"><div class="card-head"><h3>Daily figures</h3>' +
+    '<div class="right fine">' + days.toLocaleString('en-US') + ' day' + (days === 1 ? '' : 's') + '</div></div>' +
+    tableHTML() + '</div>';
+
+  views.innerHTML = html;
+  bindChart();
+  bindTable();
+}
+
+function listPhrase(items) {
+  if (items.length < 2) return items[0] || '';
+  return items.slice(0, -1).join(', ') + ' or ' + items[items.length - 1];
+}
+
+function statCard(label, value, glyph, delta, spark) {
+  return '<div class="card stat"><div class="label"><span class="chip">' + glyph + '</span>' + esc(label) + '</div>' +
+    '<div class="value num">' + value + '</div>' +
+    '<div class="delta">' + delta + '</div>' + sparkline(spark) + '</div>';
+}
+
+function sparkline(values) {
+  if (!values || values.length < 2) return '';
+  const w = 240, h = 34, p = 3;
+  const max = Math.max.apply(null, values), min = Math.min.apply(null, values.concat([0]));
+  const span = (max - min) || 1;
+  const d = values.map((v, i) => {
+    const x = p + i * (w - p * 2) / (values.length - 1);
+    const y = h - p - ((v - min) / span) * (h - p * 2);
+    return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+  }).join(' ');
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path d="' + d + '" fill="none" stroke="var(--taupe-deep)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+/* =====================================================================
+   7. TREND CHART
+   One series over time -> a line. No legend (the card title names it),
+   recessive gridlines, one axis, a crosshair that snaps to the nearest day.
+   ===================================================================== */
+const CHART = { W: 900, H: 300, L: 64, R: 20, T: 18, B: 34 };
+
+/* Ticks a reader can do arithmetic with: a 1/2/2.5/5 x 10^n step, with the
+   axis widened to the nearest whole step at each end. */
+function niceScale(lo, hi) {
+  if (!(hi > lo)) hi = lo + 1;
+  const raw = (hi - lo) / 4;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((c) => c >= raw - 1e-9) || 10 * p;
+  const min = Math.floor(lo / step + 1e-9) * step;
+  const max = Math.ceil(hi / step - 1e-9) * step;
+  return { min, max, step, count: Math.max(1, Math.round((max - min) / step)) };
+}
+function chartX(i, n) {
+  const { L, W, R } = CHART;
+  if (n < 2) return L + (W - L - R) / 2;
+  return L + i * (W - L - R) / (n - 1);
+}
+function chartY(v, max, min) {
+  const { T, H, B } = CHART;
+  const span = (max - min) || 1;
+  return T + (1 - (v - min) / span) * (H - T - B);
+}
+
+function chartHTML(daily, metric) {
+  if (!daily.length) {
+    return '<div class="empty"><b>No dated rows to chart</b>Every row is in the totals, but none carried a date this tool could read.</div>';
+  }
+  const { W, H, L, R, T, B } = CHART;
+  const isMoney = metric === 'amount';
+  const values = daily.map((d) => (isMoney ? d.amount : d.qty));
+  const n = values.length;
+  const rawMax = Math.max.apply(null, values);
+  const rawMin = Math.min.apply(null, values);
+  const scale = niceScale(Math.min(0, rawMin), Math.max(0, rawMax));   // the axis holds zero
+  const min = scale.min, max = scale.max;
+
+  /* gridlines + y ticks */
+  let grid = '';
+  for (let i = 0; i <= scale.count; i++) {
+    const v = min + scale.step * i;
+    const y = chartY(v, max, min);
+    grid += '<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R) + '" y2="' + y.toFixed(1) +
+      '" stroke="var(--line-soft)" stroke-width="1"/>' +
+      '<text x="' + (L - 10) + '" y="' + (y + 3.5).toFixed(1) + '" text-anchor="end" font-size="10.5" ' +
+      'fill="var(--muted)" font-family="IBM Plex Mono, monospace">' + esc(compact(v, isMoney)) + '</text>';
+  }
+  if (min < 0) {
+    const zy = chartY(0, max, min);
+    grid += '<line x1="' + L + '" y1="' + zy.toFixed(1) + '" x2="' + (W - R) + '" y2="' + zy.toFixed(1) +
+      '" stroke="var(--line)" stroke-width="1"/>';
+  }
+
+  /* x labels, thinned so they never collide */
+  const every = Math.max(1, Math.ceil(n / 9));
+  let xlab = '';
+  daily.forEach((d, i) => {
+    if (i % every !== 0 && i !== n - 1) return;
+    if (i !== n - 1 && n - 1 - i < every * 0.6) return;     // don't crowd the last label
+    xlab += '<text x="' + chartX(i, n).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="10.5" ' +
+      'fill="var(--muted)" font-family="IBM Plex Mono, monospace">' + esc(dayLabel(d.key)) + '</text>';
+  });
+
+  const pts = values.map((v, i) => [chartX(i, n), chartY(v, max, min)]);
+  const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const base = chartY(Math.max(min, 0), max, min);
+  const area = n > 1
+    ? '<path d="' + path + ' L' + pts[n - 1][0].toFixed(1) + ' ' + base.toFixed(1) +
+      ' L' + pts[0][0].toFixed(1) + ' ' + base.toFixed(1) + ' Z" fill="var(--taupe-deep)" opacity="0.10"/>'
+    : '';
+  const line = n > 1
+    ? '<path d="' + path + '" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    : '';
+
+  /* the endpoint is the one point worth labelling directly */
+  const lastPt = pts[n - 1];
+  const lastVal = values[n - 1];
+  const labelRight = lastPt[0] > W - 90;
+  const endLabel =
+    '<circle cx="' + lastPt[0].toFixed(1) + '" cy="' + lastPt[1].toFixed(1) + '" r="4" fill="var(--ink)" ' +
+      'stroke="var(--card)" stroke-width="2"/>' +
+    '<text x="' + (lastPt[0] + (labelRight ? -10 : 10)).toFixed(1) + '" y="' + (lastPt[1] - 9).toFixed(1) + '" ' +
+      'text-anchor="' + (labelRight ? 'end' : 'start') + '" font-size="11.5" fill="var(--ink-2)" ' +
+      'font-family="IBM Plex Mono, monospace">' + esc(compact(lastVal, isMoney)) + '</text>';
+
+  const payload = daily.map((d) => ({ k: d.key, q: d.qty, a: d.amount, n: d.n }));
+
+  return '<div class="chart-wrap" id="chart" tabindex="0" role="img" data-min="' + min + '" data-max="' + max + '" ' +
+    'aria-label="Daily ' + (isMoney ? 'sales amount' : 'sales quantity') + ' from ' + esc(dayLabel(daily[0].key, true)) +
+    ' to ' + esc(dayLabel(daily[n - 1].key, true)) + '">' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible">' +
+      grid + xlab + area + line +
+      '<line class="cross" x1="0" y1="' + T + '" x2="0" y2="' + (H - B) + '" stroke="var(--taupe-deep)" ' +
+        'stroke-width="1" opacity="0"/>' +
+      '<circle class="hot" r="4.5" fill="var(--ink)" stroke="var(--card)" stroke-width="2" opacity="0"/>' +
+      endLabel +
+      '<rect class="hit" x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent"/>' +
+    '</svg>' +
+    '<div class="chart-tip" role="status"></div>' +
+    '<script type="application/json" class="chart-data">' + JSON.stringify(payload).replace(/</g, '\\u003c') + '<\/script>' +
+  '</div>';
+}
+
+function bindChart() {
+  const wrap = $('#chart');
+  if (!wrap) return;
+  const data = JSON.parse(wrap.querySelector('.chart-data').textContent);
+  const n = data.length;
+  const min = +wrap.dataset.min, max = +wrap.dataset.max;
+  const svg = wrap.querySelector('svg');
+  const cross = wrap.querySelector('.cross');
+  const dot = wrap.querySelector('.hot');
+  const tip = wrap.querySelector('.chart-tip');
+  const isMoney = STATE.metric === 'amount';
+  let active = -1;
+
+  function show(i) {
+    if (i < 0 || i >= n) return;
+    active = i;
+    const d = data[i];
+    const v = isMoney ? d.a : d.q;
+    const x = chartX(i, n), y = chartY(v, max, min);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x);
+    cross.setAttribute('opacity', '1');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    dot.setAttribute('opacity', '1');
+
+    /* value leads, label follows — and both are set as text, never markup */
+    tip.textContent = '';
+    const b = document.createElement('b');
+    b.textContent = isMoney ? fmtAmount(d.a) : fmtQty(d.q);
+    const sub = document.createElement('span');
+    sub.textContent = dayLabel(d.k, true) + ' · ' + (isMoney ? fmtQty(d.q) + ' units' : fmtAmount(d.a));
+    tip.appendChild(b); tip.appendChild(sub);
+
+    const box = svg.getBoundingClientRect();
+    tip.style.left = (box.width * x / CHART.W) + 'px';
+    tip.style.top = (box.height * y / CHART.H) + 'px';
+    tip.style.opacity = '1';
+  }
+  function hide() {
+    active = -1;
+    cross.setAttribute('opacity', '0');
+    dot.setAttribute('opacity', '0');
+    tip.style.opacity = '0';
+  }
+  function indexAt(clientX) {
+    const box = svg.getBoundingClientRect();
+    const x = (clientX - box.left) / box.width * CHART.W;
+    if (n < 2) return 0;
+    const step = (CHART.W - CHART.L - CHART.R) / (n - 1);
+    return Math.max(0, Math.min(n - 1, Math.round((x - CHART.L) / step)));
+  }
+
+  svg.addEventListener('pointermove', (e) => show(indexAt(e.clientX)));
+  svg.addEventListener('pointerdown', (e) => show(indexAt(e.clientX)));
+  wrap.addEventListener('pointerleave', hide);
+  wrap.addEventListener('blur', hide);
+  wrap.addEventListener('focus', () => show(active < 0 ? n - 1 : active));
+  wrap.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { show(Math.min(n - 1, (active < 0 ? -1 : active) + 1)); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { show(Math.max(0, (active < 0 ? n : active) - 1)); e.preventDefault(); }
+    else if (e.key === 'Home') { show(0); e.preventDefault(); }
+    else if (e.key === 'End') { show(n - 1); e.preventDefault(); }
+    else if (e.key === 'Escape') hide();
+  });
+}
+
+/* =====================================================================
+   8. DAILY TABLE  (also the accessible view of the chart)
+   ===================================================================== */
+function sortedDaily() {
+  const rows = STATE.daily.slice();
+  const { key, dir } = STATE.sort;
+  const sign = dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    if (key === 'date') return a.key < b.key ? -sign : a.key > b.key ? sign : 0;
+    return (a[key] - b[key]) * sign;
+  });
+  return rows;
+}
+
+function tableHTML() {
+  if (!STATE.daily.length) {
+    return '<div class="empty"><b>No dated rows</b>The totals above cover every row; there is nothing to break down by day.</div>';
+  }
+  const rows = sortedDaily();
+  const t = STATE.totals;
+  const arrow = (k) => (STATE.sort.key === k ? '<span class="arrow">' + (STATE.sort.dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>' : '');
+  const th = (k, label, cls) => '<th class="sortable ' + (cls || '') + '" data-sort="' + k + '" scope="col" ' +
+    'aria-sort="' + (STATE.sort.key === k ? (STATE.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') + '">' +
+    label + arrow(k) + '</th>';
+
+  return '<div class="tablewrap"><table><thead><tr>' +
+    th('date', 'Date') + th('n', 'Sales', 'r') + th('qty', 'Quantity', 'r') + th('amount', 'Amount', 'r') +
+    '</tr></thead><tbody>' +
+    rows.map((d) =>
+      '<tr><td>' + esc(dayLabel(d.key, true)) + '</td>' +
+      '<td class="r num">' + d.n.toLocaleString('en-US') + '</td>' +
+      '<td class="r num">' + fmtQty(d.qty) + '</td>' +
+      '<td class="r num">' + fmtAmount(d.amount) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr>' +
+    '<td>' + (t.dated < t.rows ? 'Dated total' : 'Total') + '</td>' +
+    '<td class="r num">' + t.dated.toLocaleString('en-US') + '</td>' +
+    '<td class="r num">' + fmtQty(rows.reduce((a, d) => a + d.qty, 0)) + '</td>' +
+    '<td class="r num">' + fmtAmount(rows.reduce((a, d) => a + d.amount, 0)) + '</td>' +
+    '</tr></tfoot></table></div>';
+}
+
+function bindTable() {
+  document.querySelectorAll('th.sortable').forEach((th) => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (STATE.sort.key === k) STATE.sort.dir = STATE.sort.dir === 'asc' ? 'desc' : 'asc';
+      else STATE.sort = { key: k, dir: k === 'date' ? 'asc' : 'desc' };
+      renderMain();
+    });
+  });
+}
+
+/* =====================================================================
+   9. WIRING
+   ===================================================================== */
+const input = $('#fileInput');
+const zone = $('#dropzone');
+const veil = $('#dropveil');
+
+input.addEventListener('change', () => {
+  if (input.files && input.files[0]) loadFile(input.files[0]);
+  input.value = '';                       // so the same file can be re-picked
+});
+zone.addEventListener('click', () => input.click());
+zone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+});
+
+/* drop anywhere on the page — the sidebar is a small target for a big file */
+let dragDepth = 0;
+function hasFiles(e) {
+  return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1;
+}
+window.addEventListener('dragenter', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  veil.classList.add('on');
+  zone.classList.add('over');
+});
+window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('dragleave', (e) => {
+  if (!hasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) { veil.classList.remove('on'); zone.classList.remove('over'); }
+});
+window.addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  veil.classList.remove('on');
+  zone.classList.remove('over');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+
+renderAll();
+</script>
+</body>
+</html>
