@@ -229,7 +229,12 @@ create trigger stamp_sale_row_before_insert
 --  and the person's own rate otherwise.
 -- ---------------------------------------------------------------------
 
-create or replace view public.commission_summary
+-- Dropped rather than replaced: CREATE OR REPLACE VIEW cannot remove or rename
+-- a column, so replacing an older summary view of a different shape fails with
+-- "cannot drop columns from view". A view holds no data, so this costs nothing.
+drop view if exists public.commission_summary cascade;
+
+create view public.commission_summary
 with (security_invoker = true) as
 select
   s.id           as submission_id,
@@ -406,3 +411,50 @@ from generate_series(
   interval '1 month'
 ) as m
 on conflict (id) do nothing;
+
+
+-- ---------------------------------------------------------------------
+--  9. CHECK WHAT WE ENDED UP WITH
+--
+--  `create table if not exists` says nothing when a table is already
+--  there under the same name with different columns — the app would then
+--  fail later with a confusing error from whichever screen touched the
+--  missing field first. This turns that into one clear message now.
+-- ---------------------------------------------------------------------
+
+do $$
+declare
+  r       record;
+  missing text := '';
+begin
+  for r in
+    select * from (values
+      ('profiles','id'),            ('profiles','full_name'),      ('profiles','job_title'),
+      ('profiles','commission_rate'),('profiles','role'),          ('profiles','is_active'),
+      ('periods','id'),             ('periods','label'),           ('periods','due_at'),
+      ('periods','is_open'),
+      ('submissions','id'),         ('submissions','user_id'),     ('submissions','period_id'),
+      ('submissions','file_name'),  ('submissions','file_path'),   ('submissions','file_size'),
+      ('submissions','row_count'),  ('submissions','sales_total'), ('submissions','status'),
+      ('submissions','submitted_at'),('submissions','is_late'),    ('submissions','days_late'),
+      ('sale_rows','submission_id'),('sale_rows','user_id'),       ('sale_rows','period_id'),
+      ('sale_rows','sale_date'),    ('sale_rows','customer'),      ('sale_rows','amount'),
+      ('sale_rows','rate')
+    ) as t(tbl, col)
+  loop
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = r.tbl and column_name = r.col
+    ) then
+      missing := missing || E'\n  - ' || r.tbl || '.' || r.col;
+    end if;
+  end loop;
+
+  if missing <> '' then
+    raise exception E'This database already holds tables from an earlier setup that do not match this schema.\n\nMissing columns:%\n\nEither add those columns, or rename the old tables out of the way\n(alter table public.<name> rename to <name>_old;) and run this file again.',
+      missing;
+  end if;
+
+  raise notice 'Schema check passed — every column the app reads is present.';
+end;
+$$;

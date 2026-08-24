@@ -121,10 +121,38 @@ block of `schema.sql` with a wider date range.
 
 ## If something goes wrong
 
+### Seeing what is already in the database
+
+If the project has been set up before, this shows what is there now:
+
+```sql
+select table_name, string_agg(column_name, ', ' order by ordinal_position) as columns
+from information_schema.columns
+where table_schema = 'public'
+group by table_name
+order by table_name;
+```
+
+`schema.sql` ends with a check that names any column the app needs and the
+database does not have, so you get one clear message instead of a broken
+screen later on.
+
+To start over from nothing, move the old tables aside rather than deleting
+them — you keep the data, and the script builds fresh alongside:
+
+```sql
+alter table public.sale_rows   rename to sale_rows_old;
+alter table public.submissions rename to submissions_old;
+alter table public.periods     rename to periods_old;
+alter table public.profiles    rename to profiles_old;
+```
+
 | What you see | What it means |
 |---|---|
 | `syntax error at or near "const"` | JavaScript was pasted into the SQL editor. Only `schema.sql` goes there. |
 | "Almost there" setup screen | Step 3 is not done — `js/core.js` still has placeholder values. |
 | "Your account has no profile yet" | The signup trigger did not run for that user. Re-run `schema.sql`, then delete and re-invite the user. |
 | Sign-in behaves oddly when opened from disk | Serve the folder over `http://` instead — see **Opening the app**. |
-| An empty dashboard with no periods | The seed block at the end of `schema.sql` did not run. Run it on its own. |
+| An empty dashboard with no periods | The seed block near the end of `schema.sql` did not run. Run it on its own. |
+| `cannot drop columns from view` | An older `commission_summary` view is in the way. Fixed — re-run the current `schema.sql`, which drops it first. |
+| `already holds tables from an earlier setup` | Tables exist under these names with different columns. The message lists exactly which columns are missing; see **Seeing what is already in the database**. |
