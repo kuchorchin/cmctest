@@ -21,6 +21,10 @@ It creates the four tables, the summary view, the security rules, a private
 bucket for the uploaded files, and two years of monthly periods. Running it a
 second time is harmless — it will not wipe anything you have already collected.
 
+A clean run reports **"Success. No rows returned"**. To see what was built,
+run [`supabase/verify.sql`](supabase/verify.sql), which is read-only and
+lists every piece with its status.
+
 > Paste **only** `schema.sql` here. `index.html` and the files under `js/` are
 > the web app; SQL Editor cannot run those, and pasting them produces a
 > `syntax error at or near "const"`.
